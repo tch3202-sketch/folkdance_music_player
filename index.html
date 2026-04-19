@@ -113,7 +113,7 @@
     function playSong(index) {
         const song = songs[index];
         // 修正：Google Drive 音訊直連網址
-        const streamUrl = `https://google.com{song.id}`;
+        const streamUrl = `https://drive.google.com${song.id}`;
         
         statusTxt.style.color = "#007bff";
         statusTxt.innerText = "🎵 正在播放：" + song.title;
