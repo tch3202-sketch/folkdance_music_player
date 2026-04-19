@@ -69,9 +69,9 @@
                 const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.replace(/"/g, '').trim());
                 
                 // 🔍 找 ID (長度約 33 碼)
-                const foundId = cols.find(cell => cell.length >= 28 && cell.length <= 50 && !cell.includes('http'));
+                const foundId = cols[8];
                 // 🔍 找歌名 (C欄 Index 2)
-                const foundTitle = cols[2] || cols[1] || "未命名";
+                const foundTitle = cols[2] ;
 
                 if (foundId) {
                     songs.push({ title: foundTitle, id: foundId });
