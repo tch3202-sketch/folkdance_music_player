@@ -36,9 +36,7 @@
 </div>
 
 <script>
-
-    // 您發布成功的 CSV 連結
-    const CSV_URL = 'https://docs.google.com/spreadsheets/d/1nemYcOin9E3LL6nbDEqAZgDqBNzzvZPaHikAwmwVtY8/edit?usp=sharing';
+    const CSV_URL = 'https://docs.google.com/spreadsheets/d/1nemYcOin9E3LL6nbDEqAZgDqBNzzvZPaHikAwmwVtY8/edit?usp=sharing'
     
     let songs = [];
     let currentIndex = 0;
@@ -48,50 +46,40 @@
     const songList = document.getElementById('songList');
     const statusTxt = document.getElementById('status');
 
-    // 精確解析 CSV 的函式 (能處理包含逗號的網址)
-    function parseCsvLine(text) {
-        const result = [];
-        let cur = '', inQuotes = false;
-        for (let char of text) {
-            if (char === '"') inQuotes = !inQuotes;
-            else if (char === ',' && !inQuotes) {
-                result.push(cur.trim());
-                cur = '';
-            } else cur += char;
-        }
-        result.push(cur.trim());
-        return result;
-    }
-
     fetch(CSV_URL)
         .then(res => res.text())
         .then(csvText => {
+            // 使用更強大的正則表達式分割，處理可能的換行與引號
             const lines = csvText.split(/\r?\n/);
             songs = [];
 
-            // 從第二列開始跑 (跳過標題)
-            for (let i = 1; i < lines.length; i++) {
-                if (!lines[i]) continue;
-                const cols = parseCsvLine(lines[i]);
+            lines.forEach((line, index) => {
+                if (index === 0 || !line) return; // 跳過標題與空行
                 
-                // 根據您的截圖：
-                // C 欄 (歌名) 索引是 2
-                // I 欄 (音檔ID) 索引是 8
-                const title = cols[2] ? cols[2].replace(/"/g, '') : "";
-                const id = cols[8] ? cols[8].replace(/"/g, '') : "";
+                // 將該行拆分成陣列
+                const cols = line.split(',').map(c => c.replace(/"/g, '').trim());
+                
+                // 🔍 地毯式搜尋 ID：找尋長度在 28 到 50 之間，且不含 http 的字串
+                const foundId = cols.find(cell => cell.length >= 28 && cell.length <= 50 && !cell.includes('http'));
+                
+                // 🔍 找歌名：根據您的截圖，歌名通常在 C 欄 (Index 2)
+                const foundTitle = cols[2] || cols[1] || "未命名舞曲";
 
-                if (id && id.length > 20) {
-                    songs.push({ title: title || "未命名", id: id });
+                if (foundId) {
+                    songs.push({ title: foundTitle, id: foundId });
                 }
-                if (songs.length >= 40) break;
-            }
+            });
+
+            // 只要前 40 首
+            songs = songs.slice(0, 40);
 
             if (songs.length > 0) {
                 renderList();
                 statusTxt.style.color = "#28a745";
-                statusTxt.innerText = `✅ 成功載入 ${songs.length} 首舞曲`;
+                statusTxt.innerText = `✅ 成功載入 ${songs.length} 首歌曲`;
             } else {
-                statusTxt.innerText = "❌ 找到檔案但格式不符，請確認 I 欄位";
+                statusTxt.style.color = "#d9534f";
+                statusTxt.innerText = "❌ 找不到 ID，請確認試算表 I 欄是否有資料";
             }
         })
         .catch(err => {
@@ -118,14 +106,14 @@
 
     function playSong(index) {
         const song = songs[index];
-        // 使用 Google Drive 開放格式
+        // 這是 Google Drive 的串流播放連結
         const streamUrl = `https://google.com{song.id}`;
         statusTxt.style.color = "#007bff";
         statusTxt.innerText = "🎵 正在播放：" + song.title;
         player.src = streamUrl;
-        player.play().catch(e => {
+        player.play().catch(() => {
             statusTxt.style.color = "orange";
-            statusTxt.innerText = "⚠️ 無法播放，請確認音檔權限";
+            statusTxt.innerText = "⚠️ 播放失敗，請檢查音檔權限";
         });
         songList.value = index;
     }
@@ -144,6 +132,8 @@
     }
 </script>
 
+
+   
 
 </body>
 </html>
