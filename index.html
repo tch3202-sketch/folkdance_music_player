@@ -35,8 +35,11 @@
     <div class="footer">資料來源：Google 試算表 (前 40 首)</div>
 </div>
 
-<script>
-    const CSV_URL = 'https://docs.google.com/spreadsheets/d/1nemYcOin9E3LL6nbDEqAZgDqBNzzvZPaHikAwmwVtY8/edit?usp=sharing'
+
+  <script>
+    // 1. 關鍵修正：將網址改為 export?format=csv 格式，程式才讀得到資料
+    const SPREADSHEET_ID = '1nemYcOin9E3LL6nbDEqAZgDqBNzzvZPaHikAwmwVtY8';
+    const CSV_URL = `https://google.com{SPREADSHEET_ID}/export?format=csv&gid=0`;
     
     let songs = [];
     let currentIndex = 0;
@@ -46,23 +49,23 @@
     const songList = document.getElementById('songList');
     const statusTxt = document.getElementById('status');
 
+    // 2. 抓取資料
     fetch(CSV_URL)
         .then(res => res.text())
         .then(csvText => {
-            // 使用更強大的正則表達式分割，處理可能的換行與引號
             const lines = csvText.split(/\r?\n/);
             songs = [];
 
             lines.forEach((line, index) => {
                 if (index === 0 || !line) return; // 跳過標題與空行
                 
-                // 將該行拆分成陣列
-                const cols = line.split(',').map(c => c.replace(/"/g, '').trim());
+                // 處理 CSV 欄位可能包含逗號的情況
+                const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.replace(/"/g, '').trim());
                 
-                // 🔍 地毯式搜尋 ID：找尋長度在 28 到 50 之間，且不含 http 的字串
+                // 🔍 找 ID：Google Drive ID 通常為 33 碼左右，不含 http
                 const foundId = cols.find(cell => cell.length >= 28 && cell.length <= 50 && !cell.includes('http'));
                 
-                // 🔍 找歌名：根據您的截圖，歌名通常在 C 欄 (Index 2)
+                // 🔍 找歌名：根據截圖在 C 欄 (Index 2)
                 const foundTitle = cols[2] || cols[1] || "未命名舞曲";
 
                 if (foundId) {
@@ -70,7 +73,6 @@
                 }
             });
 
-            // 只要前 40 首
             songs = songs.slice(0, 40);
 
             if (songs.length > 0) {
@@ -84,7 +86,7 @@
         })
         .catch(err => {
             statusTxt.style.color = "#d9534f";
-            statusTxt.innerText = "❌ 連線失敗";
+            statusTxt.innerText = "❌ 連線失敗，請檢查網路";
         });
 
     function renderList() {
@@ -106,14 +108,15 @@
 
     function playSong(index) {
         const song = songs[index];
-        // 這是 Google Drive 的串流播放連結
+        // 關鍵修正：修正 Google Drive 音訊串流網址格式
         const streamUrl = `https://google.com{song.id}`;
+        
         statusTxt.style.color = "#007bff";
         statusTxt.innerText = "🎵 正在播放：" + song.title;
         player.src = streamUrl;
         player.play().catch(() => {
             statusTxt.style.color = "orange";
-            statusTxt.innerText = "⚠️ 播放失敗，請檢查音檔權限";
+            statusTxt.innerText = "⚠️ 播放失敗，請檢查音檔「共用」權限";
         });
         songList.value = index;
     }
@@ -131,6 +134,7 @@
         document.getElementById('btnLoop').className = mode === 'loop' ? 'active' : '';
     }
 </script>
+
 
 
    
