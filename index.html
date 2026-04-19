@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>土風舞音樂播放器</title>
+    <style>
+        body { font-family: "Microsoft JhengHei", sans-serif; background: #f0f2f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .player-card { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 8px 20px rgba(0,0,0,0.15); width: 90%; max-width: 400px; text-align: center; }
+        #status { color: #007bff; margin-bottom: 15px; font-weight: bold; font-size: 14px; }
+        select { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #ccc; margin-bottom: 20px; font-size: 16px; }
+        .btn-group { margin-bottom: 20px; }
+        button { padding: 8px 15px; border: 1px solid #007bff; background: white; color: #007bff; border-radius: 5px; cursor: pointer; transition: 0.3s; }
+        button.active { background: #007bff; color: white; }
+        audio { width: 100%; }
+        .footer { margin-top: 15px; font-size: 12px; color: #888; }
+    </style>
+</head>
+<body>
+
+<div class="player-card">
+    <h2>💃 土風舞音樂播放</h2>
+    <div id="status">同步雲端資料中...</div>
+    
+    <select id="songList">
+        <option value="">-- 請選擇舞曲 --</option>
+    </select>
+
+    <div class="btn-group">
+        <button id="btnLoop" onclick="setMode('loop')" class="active">連續播放</button>
+        <button id="btnSingle" onclick="setMode('single')">單曲播放</button>
+    </div>
+
+    <audio id="audioPlayer" controls></audio>
+    <div class="footer">資料來源：Google 試算表 (前 40 首)</div>
+</div>
+
+<script>
+    // 1. 設定區：請確保你的試算表已「發布到網路」
+    const SPREADSHEET_ID = '1nemYcOin9E3LL6nbDEqAZgDqBNzzvZPaHikAwmwVtY8';
+    const CSV_URL = `https://google.com{SPREADSHEET_ID}/export?format=csv&gid=0`;
+
+    let songs = [];
+    let currentIndex = 0;
+    let playMode = 'loop'; 
+
+    const player = document.getElementById('audioPlayer');
+    const songList = document.getElementById('songList');
+    const statusTxt = document.getElementById('status');
+
+    // 2. 抓取 CSV 資料
+    fetch(CSV_URL)
+        .then(res => res.text())
+        .then(csvText => {
+            // 解析 CSV 邏輯 (簡單處理)
+            const rows = csvText.split('\n').map(row => row.split(','));
+            
+            // 從第 2 列開始抓取 (跳過標題)，並限制 40 首
+            // 對應：C 欄為 index 2, I 欄為 index 8
+            for (let i = 1; i < rows.length; i++) {
+                const col = rows[i];
+                if (col && col[8]) { // 確保 I 欄有 ID
+                    const title = col[2] ? col[2].replace(/"/g, '').trim() : "未命名";
+                    const id = col[8].replace(/"/g, '').trim();
+                    if (id.length > 10) { // 簡單檢查 ID 長度
+                        songs.push({ title, id });
+                    }
+                }
+                if (songs.length >= 40) break;
+            }
+
+            if (songs.length > 0) {
+                renderList();
+                statusTxt.style.color = "#28a745";
+                statusTxt.innerText = `✅ 已成功載入 ${songs.length} 首舞曲`;
+            } else {
+                statusTxt.innerText = "❌ 找不到 ID 資料，請檢查試算表 I 欄";
+            }
+        })
+        .catch(err => {
+            statusTxt.style.color = "#d9534f";
+            statusTxt.innerText = "❌ 連線失敗，請檢查發布設定";
+        });
+
+    function renderList() {
+        songs.forEach((song, index) => {
+            const opt = document.createElement('option');
+            opt.value = index;
+            opt.innerText = `${index + 1}. ${song.title}`;
+            songList.appendChild(opt);
+        });
+    }
+
+    // 選單切換播放
+    songList.onchange = function() {
+        if (this.value !== "") {
+            currentIndex = parseInt(this.value);
+            playSong(currentIndex);
+        }
+    };
+
+    function playSong(index) {
+        const song = songs[index];
+        // 拼接 Google Drive 直接串流連結
+        const streamUrl = `https://google.com{song.id}`;
+        
+        statusTxt.innerText = "🎵 正在播放：" + song.title;
+        player.src = streamUrl;
+        player.play().catch(e => {
+            statusTxt.style.color = "orange";
+            statusTxt.innerText = "⚠️ 無法播放，請確認雲端檔案共用權限";
+        });
+        songList.value = index;
+    }
+
+    // 自動下一首邏輯
+    player.onended = function() {
+        if (playMode === 'loop') {
+            currentIndex = (currentIndex + 1) % songs.length;
+            playSong(currentIndex);
+        }
+    };
+
+    function setMode(mode) {
+        playMode = mode;
+        document.getElementById('btnSingle').className = mode === 'single' ? 'active' : '';
+        document.getElementById('btnLoop').className = mode === 'loop' ? 'active' : '';
+    }
+</script>
+
+</body>
+</html>
