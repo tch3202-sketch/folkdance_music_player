@@ -36,11 +36,8 @@
 </div>
 
 <script>
-    // 1. 設定區：請確保你的試算表已「發布到網路」
-
-    const SPREADSHEET_ID = '1nemYcOin9E3LL6nbDEqAZgDqBNzzvZPaHikAwmwVtY8';
-    const CSV_URL = `https://google.com{SPREADSHEET_ID}/export?format=csv&gid=0`;
-
+    // 1. 設定區：使用您發布成功的 CSV 連結 (這是最穩定的做法)
+    const CSV_URL = 'https://google.com';
     
     let songs = [];
     let currentIndex = 0;
@@ -54,17 +51,15 @@
     fetch(CSV_URL)
         .then(res => res.text())
         .then(csvText => {
-            // 解析 CSV 邏輯 (簡單處理)
             const rows = csvText.split('\n').map(row => row.split(','));
             
-            // 從第 2 列開始抓取 (跳過標題)，並限制 40 首
-            // 對應：C 欄為 index 2, I 欄為 index 8
             for (let i = 1; i < rows.length; i++) {
                 const col = rows[i];
-                if (col && col[8]) { // 確保 I 欄有 ID
+                // 修正：C 欄(歌名)是 col[2]，I 欄(ID)是 col[8]
+                if (col && col[8]) { 
                     const title = col[2] ? col[2].replace(/"/g, '').trim() : "未命名";
                     const id = col[8].replace(/"/g, '').trim();
-                    if (id.length > 10) { // 簡單檢查 ID 長度
+                    if (id.length > 10) {
                         songs.push({ title, id });
                     }
                 }
@@ -93,7 +88,6 @@
         });
     }
 
-    // 選單切換播放
     songList.onchange = function() {
         if (this.value !== "") {
             currentIndex = parseInt(this.value);
@@ -103,19 +97,19 @@
 
     function playSong(index) {
         const song = songs[index];
-        // 拼接 Google Drive 直接串流連結
+        // 修正：Google Drive 的音樂播放網址格式
         const streamUrl = `https://google.com{song.id}`;
         
+        statusTxt.style.color = "#007bff";
         statusTxt.innerText = "🎵 正在播放：" + song.title;
         player.src = streamUrl;
         player.play().catch(e => {
             statusTxt.style.color = "orange";
-            statusTxt.innerText = "⚠️ 無法播放，請確認雲端檔案共用權限";
+            statusTxt.innerText = "⚠️ 無法播放，請確認音檔已設為「知道連結者可檢視」";
         });
         songList.value = index;
     }
 
-    // 自動下一首邏輯
     player.onended = function() {
         if (playMode === 'loop') {
             currentIndex = (currentIndex + 1) % songs.length;
@@ -132,3 +126,4 @@
 
 </body>
 </html>
+
