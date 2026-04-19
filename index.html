@@ -30,8 +30,8 @@
         <button id="btnLoop" onclick="setMode('loop')" class="active">連續播放</button>
         <button id="btnSingle" onclick="setMode('single')">單曲播放</button>
     </div>
+    <audio id="audioPlayer" controls crossorigin="anonymous"></audio>
 
-    <audio id="audioPlayer" controls></audio>
     <div class="footer">資料來源：Google 試算表 (前 40 首)</div>
 </div>
 
@@ -113,7 +113,7 @@
     function playSong(index) {
         const song = songs[index];
         // 修正：Google Drive 音訊直連網址
-        const streamUrl = `https://drive.google.com/uc?id=${song.id}`;
+        const streamUrl = `https://drive.google.com/uc?export=download&id=${song.id}&confirm=t`;
         
         statusTxt.style.color = "#007bff";
         statusTxt.innerText = "🎵 正在播放：" + song.title;
