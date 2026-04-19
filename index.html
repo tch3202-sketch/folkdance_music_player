@@ -36,7 +36,8 @@
 </div>
 
 <script>
-    // 1. 設定區：使用您發布成功的 CSV 連結 (這是最穩定的做法)
+
+    // 您發布成功的 CSV 連結
     const CSV_URL = 'https://docs.google.com/spreadsheets/d/1nemYcOin9E3LL6nbDEqAZgDqBNzzvZPaHikAwmwVtY8/edit?usp=sharing';
     
     let songs = [];
@@ -47,21 +48,40 @@
     const songList = document.getElementById('songList');
     const statusTxt = document.getElementById('status');
 
-    // 2. 抓取 CSV 資料
+    // 精確解析 CSV 的函式 (能處理包含逗號的網址)
+    function parseCsvLine(text) {
+        const result = [];
+        let cur = '', inQuotes = false;
+        for (let char of text) {
+            if (char === '"') inQuotes = !inQuotes;
+            else if (char === ',' && !inQuotes) {
+                result.push(cur.trim());
+                cur = '';
+            } else cur += char;
+        }
+        result.push(cur.trim());
+        return result;
+    }
+
     fetch(CSV_URL)
         .then(res => res.text())
         .then(csvText => {
-            const rows = csvText.split('\n').map(row => row.split(','));
-            
-            for (let i = 1; i < rows.length; i++) {
-                const col = rows[i];
-                // 修正：C 欄(歌名)是 col[2]，I 欄(ID)是 col[8]
-                if (col && col[8]) { 
-                    const title = col[2] ? col[2].replace(/"/g, '').trim() : "未命名";
-                    const id = col[8].replace(/"/g, '').trim();
-                    if (id.length > 10) {
-                        songs.push({ title, id });
-                    }
+            const lines = csvText.split(/\r?\n/);
+            songs = [];
+
+            // 從第二列開始跑 (跳過標題)
+            for (let i = 1; i < lines.length; i++) {
+                if (!lines[i]) continue;
+                const cols = parseCsvLine(lines[i]);
+                
+                // 根據您的截圖：
+                // C 欄 (歌名) 索引是 2
+                // I 欄 (音檔ID) 索引是 8
+                const title = cols[2] ? cols[2].replace(/"/g, '') : "";
+                const id = cols[8] ? cols[8].replace(/"/g, '') : "";
+
+                if (id && id.length > 20) {
+                    songs.push({ title: title || "未命名", id: id });
                 }
                 if (songs.length >= 40) break;
             }
@@ -69,17 +89,18 @@
             if (songs.length > 0) {
                 renderList();
                 statusTxt.style.color = "#28a745";
-                statusTxt.innerText = `✅ 已成功載入 ${songs.length} 首舞曲`;
+                statusTxt.innerText = `✅ 成功載入 ${songs.length} 首舞曲`;
             } else {
-                statusTxt.innerText = "❌ 找不到 ID 資料，請檢查試算表 I 欄";
+                statusTxt.innerText = "❌ 找到檔案但格式不符，請確認 I 欄位";
             }
         })
         .catch(err => {
             statusTxt.style.color = "#d9534f";
-            statusTxt.innerText = "❌ 連線失敗，請檢查發布設定";
+            statusTxt.innerText = "❌ 連線失敗";
         });
 
     function renderList() {
+        songList.innerHTML = '<option value="">-- 請選擇舞曲 --</option>';
         songs.forEach((song, index) => {
             const opt = document.createElement('option');
             opt.value = index;
@@ -97,15 +118,14 @@
 
     function playSong(index) {
         const song = songs[index];
-        // 修正：Google Drive 的音樂播放網址格式
+        // 使用 Google Drive 開放格式
         const streamUrl = `https://google.com{song.id}`;
-        
         statusTxt.style.color = "#007bff";
         statusTxt.innerText = "🎵 正在播放：" + song.title;
         player.src = streamUrl;
         player.play().catch(e => {
             statusTxt.style.color = "orange";
-            statusTxt.innerText = "⚠️ 無法播放，請確認音檔已設為「知道連結者可檢視」";
+            statusTxt.innerText = "⚠️ 無法播放，請確認音檔權限";
         });
         songList.value = index;
     }
@@ -123,6 +143,7 @@
         document.getElementById('btnLoop').className = mode === 'loop' ? 'active' : '';
     }
 </script>
+
 
 </body>
 </html>
