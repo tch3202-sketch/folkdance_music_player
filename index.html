@@ -36,10 +36,9 @@
 </div>
 
 
-  <script>
-    // 1. 關鍵修正：將網址改為 export?format=csv 格式，程式才讀得到資料
-   
-    const CSV_URL = `hhttps://docs.google.com/spreadsheets/d/1nemYcOin9E3LL6nbDEqAZgDqBNzzvZPaHikAwmwVtY8/edit?usp=sharing`;
+
+<script>
+    const CSV_URL = 'https://docs.google.com/spreadsheets/d/1nemYcOin9E3LL6nbDEqAZgDqBNzzvZPaHikAwmwVtY8/edit?usp=sharing';
     
     let songs = [];
     let currentIndex = 0;
@@ -49,39 +48,45 @@
     const songList = document.getElementById('songList');
     const statusTxt = document.getElementById('status');
 
-    // 2. 抓取資料
     fetch(CSV_URL)
         .then(res => res.text())
         .then(csvText => {
-            const lines = csvText.split(/\r?\n/);
+            // 1. 分割列，並過濾掉空行
+            const lines = csvText.split(/\r?\n/).filter(line => line.trim() !== "");
             songs = [];
 
             lines.forEach((line, index) => {
-                if (index === 0 || !line) return; // 跳過標題與空行
+                if (index === 0) return; // 跳過標題
                 
-                // 處理 CSV 欄位可能包含逗號的情況
-                const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.replace(/"/g, '').trim());
+                // 2. 使用正則表達式分割 CSV，能處理包含逗號的引號內容
+                const cols = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
                 
-                // 🔍 找 ID：Google Drive ID 通常為 33 碼左右，不含 http
-                const foundId = cols.find(cell => cell.length >= 28 && cell.length <= 50 && !cell.includes('http'));
-                
-                // 🔍 找歌名：根據截圖在 C 欄 (Index 2)
-                const foundTitle = cols[2] || cols[1] || "未命名舞曲";
+                if (cols) {
+                    const cleanCols = cols.map(c => c.replace(/^"|"$/g, '').trim());
+                    
+                    // 3. 根據您的圖片：歌名在 C 欄 (Index 2)，ID 在 I 欄 (Index 8)
+                    const title = cleanCols[2] || "未命名舞曲";
+                    const id = cleanCols[8] || "";
 
-                if (foundId) {
-                    songs.push({ title: foundTitle, id: foundId });
+                    // 只要 ID 欄位不是空的，且不是網址，就視為 ID
+                    if (id && !id.includes('http') && id.length > 5) {
+                        songs.push({ title: title, id: id });
+                    }
                 }
             });
 
+            // 只要前 40 首
             songs = songs.slice(0, 40);
 
             if (songs.length > 0) {
                 renderList();
                 statusTxt.style.color = "#28a745";
-                statusTxt.innerText = `✅ 成功載入 ${songs.length} 首歌曲`;
+                statusTxt.innerText = `✅ 成功載入 ${songs.length} 首舞曲`;
             } else {
+                // --- 偵錯顯示：如果還是失敗，顯示第一行內容幫助判斷 ---
+                const debugInfo = lines[1] ? lines[1].substring(0, 30) : "無資料";
                 statusTxt.style.color = "#d9534f";
-                statusTxt.innerText = "❌ 找不到 ID，請確認試算表 I 欄是否有資料";
+                statusTxt.innerText = `❌ 解析失敗。第一列樣本：${debugInfo}...`;
             }
         })
         .catch(err => {
@@ -108,15 +113,14 @@
 
     function playSong(index) {
         const song = songs[index];
-        // 關鍵修正：修正 Google Drive 音訊串流網址格式
+        // 拼接最穩定的播放連結
         const streamUrl = `https://google.com{song.id}`;
-        
         statusTxt.style.color = "#007bff";
         statusTxt.innerText = "🎵 正在播放：" + song.title;
         player.src = streamUrl;
         player.play().catch(() => {
             statusTxt.style.color = "orange";
-            statusTxt.innerText = "⚠️ 播放失敗，請檢查音檔「共用」權限";
+            statusTxt.innerText = "⚠️ 播放失敗，請檢查雲端權限";
         });
         songList.value = index;
     }
@@ -134,6 +138,7 @@
         document.getElementById('btnLoop').className = mode === 'loop' ? 'active' : '';
     }
 </script>
+
 
 
 
